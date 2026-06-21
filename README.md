@@ -93,7 +93,21 @@ Every push and PR runs Detekt, unit tests, and `assembleDebug`.
 1. Add `feature:<name>` modules for new user flows
 2. Replace `FakeCatalogRepository` with network/local data sources
 3. Introduce `build-logic` convention plugins for org-wide Gradle policy
-4. Add Macrobenchmark module for performance regression gates
+4. Run performance benchmarks (see below)
+
+## Performance engineering
+
+The `benchmark` module includes Macrobenchmark startup tests and a Baseline Profile generator.
+
+```bash
+# Compile benchmark harness
+./gradlew :benchmark:assemble
+
+# Run on a physical device (requires connected hardware)
+./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest
+```
+
+This encodes performance regression gates—the difference between "we care about architecture" and "we care about user-perceived speed."
 
 ## Related showcase repos
 
