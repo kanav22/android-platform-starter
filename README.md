@@ -58,6 +58,14 @@ flowchart TB
 | Data | Fake repository (swap for Retrofit/Room) |
 | Quality | Detekt, JVM + Android unit tests, GitHub Actions |
 
+## Architecture decisions
+
+Significant choices are documented as ADRs in [`docs/adr/`](docs/adr/README.md). Start there when forking or reviewing this template.
+
+## Writing
+
+- [Performance budgets with Macrobenchmark](docs/articles/macrobenchmark-performance-budgets.md)
+
 ## Stack
 
 Kotlin · Jetpack Compose · Hilt · Coroutines/Flow · Gradle Kotlin DSL · Detekt · GitHub Actions
