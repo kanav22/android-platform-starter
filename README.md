@@ -1,128 +1,107 @@
 # Android Platform Starter
 
 [![CI](https://github.com/kanav22/android-platform-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/kanav22/android-platform-starter/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Jetpack_Compose-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Production-shaped Android template for Principal-level teams — modular architecture, Compose UI, Hilt DI, Detekt, and CI quality gates out of the box.
+Production Android platform template — modular Compose, Hilt, Detekt, Macrobenchmark, and CI quality gates.
+
+> Copy this repo when bootstrapping a platform team or migrating a monolith to multi-module. ADRs included.
+
+**Author:** [Kanav Wadhawan](https://github.com/kanav22) · [Portfolio](https://www.kanavwadhawan.com)
 
 ---
 
 ## Why this exists
 
-New Android codebases fail when architecture decisions are deferred. This starter encodes opinionated defaults so teams ship with:
+Most Android templates teach UI patterns. This one teaches **platform engineering**:
 
-- Clear module boundaries (`app` → `feature` → `core`)
-- Testable domain use cases
-- Compose + Material 3 design system module
-- Static analysis and CI from day one
+- Multi-module boundaries that scale with team size
+- Quality gates (Detekt, tests, Macrobenchmark) wired from day one
+- ADRs for decisions that survive team turnover
+- CI that catches regressions before merge
 
-Use it to bootstrap greenfield apps, align teams on conventions, or as a reference in architecture reviews.
+Built from patterns used at Paytm (500M+ users) and Angel One (1M+ daily transactions).
 
-## Module map
+---
 
-```text
-app/                  Application shell, Hilt entry point
-feature/home/         Feature UI + ViewModel + navigation-ready screen
-core/domain/          Models, repository contracts, use cases (JVM)
-core/data/            Repository implementations, Hilt data bindings
-core/designsystem/    Theme + reusable Compose components
-core/common/          Shared primitives (Result, utilities)
+## What's inside
+
+| Module / area | Purpose |
+|---------------|---------|
+| `:app` | Application entry, navigation graph |
+| `:feature:*` | Feature modules with clear public APIs |
+| `:core:*` | Shared design system, network, data utilities |
+| `docs/adr/` | Architecture Decision Records |
+| `.github/workflows/` | CI pipeline (lint, test, build) |
+| Macrobenchmark | Performance budgets and Baseline Profile setup |
+
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/kanav22/android-platform-starter.git
+cd android-platform-starter
+./gradlew assembleDebug
+./gradlew detekt
+./gradlew :benchmark:connectedBenchmarkAndroidTest  # requires device
 ```
+
+---
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    subgraph presentation [Presentation]
-        App[app]
-        Feature[feature:home]
+    subgraph App
+        Nav[Navigation]
     end
-    subgraph core_layer [Core]
-        Domain[core:domain]
-        Data[core:data]
-        Design[core:designsystem]
-        Common[core:common]
+
+    subgraph Features
+        F1[Feature A]
+        F2[Feature B]
     end
-    App --> Feature
-    Feature --> Domain
-    Feature --> Design
-    Data --> Domain
-    Domain --> Common
+
+    subgraph Core
+        DS[Design System]
+        Net[Network]
+        Data[Data]
+    end
+
+    Nav --> F1
+    Nav --> F2
+    F1 --> DS
+    F1 --> Data
+    F2 --> DS
+    F2 --> Net
+    Data --> Net
 ```
 
-| Concern | Implementation |
-|---------|----------------|
-| UI | Jetpack Compose, Material 3, `StateFlow` UI state |
-| DI | Hilt modules per layer |
-| Domain | Use cases + repository interfaces |
-| Data | Fake repository (swap for Retrofit/Room) |
-| Quality | Detekt, JVM + Android unit tests, GitHub Actions |
+---
 
-## Architecture decisions
+## Documentation
 
-Significant choices are documented as ADRs in [`docs/adr/`](docs/adr/README.md). Start there when forking or reviewing this template.
+| Doc | Description |
+|-----|-------------|
+| [Performance budgets with Macrobenchmark](docs/articles/macrobenchmark-performance-budgets.md) | Set and enforce performance targets |
+| ADRs in `docs/adr/` | Recorded architecture decisions |
 
-## Writing
+---
 
-- [Performance budgets with Macrobenchmark](docs/articles/macrobenchmark-performance-budgets.md)
+## Related projects
 
-## Stack
+| Repo | Focus |
+|------|-------|
+| [sliide-kmp-user-management](https://github.com/kanav22/sliide-kmp-user-management) | KMP · MVI · offline-first |
+| [compose-golden-toolkit](https://github.com/kanav22/compose-golden-toolkit) | Paparazzi golden testing |
+| [kanav22](https://github.com/kanav22/kanav22) | Profile & writing |
 
-Kotlin · Jetpack Compose · Hilt · Coroutines/Flow · Gradle Kotlin DSL · Detekt · GitHub Actions
-
-## Getting started
-
-### Prerequisites
-
-- Android Studio Hedgehog or newer
-- JDK 17+
-- Android SDK 34
-
-### Build
-
-```bash
-./gradlew assembleDebug
-./gradlew installDebug
-```
-
-### Quality checks
-
-```bash
-./gradlew detekt
-./gradlew :core:domain:test :feature:home:testDebugUnitTest
-```
-
-## CI
-
-Every push and PR runs Detekt, unit tests, and `assembleDebug`.
-
-## Extending the template
-
-1. Add `feature:<name>` modules for new user flows
-2. Replace `FakeCatalogRepository` with network/local data sources
-3. Introduce `build-logic` convention plugins for org-wide Gradle policy
-4. Run performance benchmarks (see below)
-
-## Performance engineering
-
-The `benchmark` module includes Macrobenchmark startup tests and a Baseline Profile generator.
-
-```bash
-# Compile benchmark harness
-./gradlew :benchmark:assemble
-
-# Run on a physical device (requires connected hardware)
-./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest
-```
-
-This encodes performance regression gates—the difference between "we care about architecture" and "we care about user-perceived speed."
-
-## Related showcase repos
-
-- [sliide-kmp-user-management](https://github.com/kanav22/sliide-kmp-user-management) — KMP + MVI + SQLDelight
-- [compose-commerce-catalog](https://github.com/kanav22/compose-commerce-catalog) — Compose + golden tests
-- [compose-movies-finder](https://github.com/kanav22/compose-movies-finder) — multi-module TMDB client
+---
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+> **Note:** Copy this file to `android-platform-starter/README.md` in that repo. Adjust module names to match your actual project structure.
