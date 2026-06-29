@@ -1,0 +1,103 @@
+From 5f8594611fbd4bcea24299aa4b9f427e8bebb915 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Mon, 29 Jun 2026 18:05:28 +0000
+Subject: [PATCH] fix(backdrop): prevent closed backdrop from blocking touches
+ on Android cold start
+
+When a BottomSheet mounts in the closed state (index={-1}) with a
+backdrop, the invisible backdrop could block all touch events on some
+Android devices until the app was backgrounded and resumed.
+
+Two issues contributed to this:
+
+1. Race condition: useAnimatedReaction could fire before the mount
+   useEffect set isMounted.current=true, causing the pointerEvents
+   update to be silently skipped while the initial state was 'auto'.
+
+2. Floating-point index: on some devices animatedIndex stops at
+   -0.999... instead of -1, so the <= disappearsOnIndex check never
+   matched when disappearsOnIndex is -1.
+
+Fix by deriving the initial pointerEvents from the current index,
+syncing on mount, and using an epsilon tolerance for index comparisons
+so near-closed values are treated as closed without affecting partially
+open positions during animations.
+
+Fixes #2680
+---
+ .../BottomSheetBackdrop.tsx                   | 35 +++++++++++++++++--
+ 1 file changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx b/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
+index a0345b0..44dd927 100644
+--- a/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
++++ b/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
+@@ -30,6 +30,13 @@ import {
+ import { styles } from './styles';
+ import type { BottomSheetDefaultBackdropProps } from './types';
+ 
++const BACKDROP_INDEX_EPSILON = 0.01;
++
++const shouldDisableBackdropTouchability = (
++  index: number,
++  disappearsOnIndex: number
++) => index <= disappearsOnIndex + BACKDROP_INDEX_EPSILON;
++
+ const BottomSheetBackdropComponent = ({
+   animatedIndex,
+   opacity: _providedOpacity,
+@@ -62,7 +69,18 @@ const BottomSheetBackdropComponent = ({
+   //#region variables
+   const [pointerEvents, setPointerEvents] = useState<
+     ViewProps['pointerEvents']
+-  >(enableTouchThrough ? 'none' : 'auto');
++  >(() => {
++    if (enableTouchThrough) {
++      return 'none';
++    }
++
++    return shouldDisableBackdropTouchability(
++      animatedIndex.value,
++      disappearsOnIndex
++    )
++      ? 'none'
++      : 'auto';
++  });
+   //#endregion
+ 
+   //#region callbacks
+@@ -120,7 +138,8 @@ const BottomSheetBackdropComponent = ({
+ 
+   //#region effects
+   useAnimatedReaction(
+-    () => animatedIndex.value <= disappearsOnIndex,
++    () =>
++      shouldDisableBackdropTouchability(animatedIndex.value, disappearsOnIndex),
+     (shouldDisableTouchability, previous) => {
+       if (shouldDisableTouchability === previous) {
+         return;
+@@ -134,10 +153,20 @@ const BottomSheetBackdropComponent = ({
+   // [link](https://github.com/gorhom/react-native-bottom-sheet/issues/1376)
+   useEffect(() => {
+     isMounted.current = true;
++
++    // Sync pointer events on mount in case the animated reaction fired before
++    // the component was mounted (https://github.com/gorhom/react-native-bottom-sheet/issues/2680)
++    const shouldDisableTouchability = shouldDisableBackdropTouchability(
++      animatedIndex.value,
++      disappearsOnIndex
++    );
++
++    setPointerEvents(shouldDisableTouchability ? 'none' : 'auto');
++
+     return () => {
+       isMounted.current = false;
+     };
+-  }, []);
++  }, [animatedIndex, disappearsOnIndex]);
+   //#endregion
+ 
+   const AnimatedView = (
+-- 
+2.43.0
+
