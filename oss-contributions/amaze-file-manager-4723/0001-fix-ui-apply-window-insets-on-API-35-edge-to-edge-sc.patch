@@ -1,0 +1,68 @@
+From 7ad6701e02bde5ede8da7f6536cd25afa2c2e814 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Tue, 22 Sep 2026 09:28:06 +0000
+Subject: [PATCH] fix(ui): apply window insets on API 35+ edge-to-edge screens
+
+Fixes #4723
+
+Enable decorFitsSystemWindows=false on Android 15+ and apply system bar
+insets to the activity content root so Preferences and the text editor
+are laid out below the status bar and above the navigation bar.
+
+Skip activities whose content root already uses fitsSystemWindows (e.g.
+MainActivity drawer) to avoid double insets.
+---
+ .../superclasses/ThemedActivity.java          | 30 ++++++++++++-------
+ 1 file changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/app/src/main/java/com/amaze/filemanager/ui/activities/superclasses/ThemedActivity.java b/app/src/main/java/com/amaze/filemanager/ui/activities/superclasses/ThemedActivity.java
+index 37f734d..ad7067c 100644
+--- a/app/src/main/java/com/amaze/filemanager/ui/activities/superclasses/ThemedActivity.java
++++ b/app/src/main/java/com/amaze/filemanager/ui/activities/superclasses/ThemedActivity.java
+@@ -111,24 +111,32 @@ public class ThemedActivity extends PreferenceActivity {
+    * bar.
+    */
+   private void setupEdgeToEdgeInsets() {
+-    if (SDK_INT >= 35) {
+-      View contentView = findViewById(android.R.id.content);
+-      if (contentView != null) {
+-        ViewCompat.setOnApplyWindowInsetsListener(
+-            contentView,
+-            (v, windowInsets) -> {
+-              Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+-              v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+-              return WindowInsetsCompat.CONSUMED;
+-            });
+-      }
++    if (SDK_INT < 35) {
++      return;
++    }
++    View contentView = findViewById(android.R.id.content);
++    if (!(contentView instanceof ViewGroup contentGroup) || contentGroup.getChildCount() == 0) {
++      return;
+     }
++    View rootView = contentGroup.getChildAt(0);
++    ViewCompat.setOnApplyWindowInsetsListener(
++        rootView,
++        (v, windowInsets) -> {
++          Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
++          v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
++          return windowInsets;
++        });
++    ViewCompat.requestApplyInsets(rootView);
+   }
+ 
+   @Override
+   public void onCreate(Bundle savedInstanceState) {
+     super.onCreate(savedInstanceState);
+ 
++    if (SDK_INT >= 35) {
++      WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
++    }
++
+     registerPowerModeReceiver();
+ 
+     // setting window background color instead of each item, in order to reduce pixel overdraw
+-- 
+2.43.0
+
